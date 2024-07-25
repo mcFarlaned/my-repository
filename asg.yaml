@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: |
+  Load balancer and autoscaling group for web application
+  
+Parameters:
+
+  pVpcId:
+    Description: VPC where resources are deployed
+    Type: AWS::EC2::VPC::Id
+
+  pSubnetIds:
+    Description: Subnets for load balancer
+    Type: List<AWS::EC2::Subnet::Id>
+  
+Resources:
+
+
+  rLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: application
+      Name: devon-load-balancer
+      Scheme: internet-facing
+      IpAddressType: ipv4
+      SecurityGroups: 
+        - !GetAtt rLbSecGroup.GroupId
+      Subnets: !Ref pSubnetIds
+
+  rListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref rLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions: 
+        - Type: forward
+          TargetGroupArn: !Ref rTargetGroup
+
+  rTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      TargetType: instance
+      Name: devon-target-group
+      Port: 80
+      Protocol: HTTP
+      IpAddressType: ipv4
+      VpcId: !Ref pVpcId
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      HealthCheckTimeoutSeconds: 5
+      HealthCheckIntervalSeconds: 30
+
+  rLbSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP Traffic
+      GroupName: AllowHTTP
+      SecurityGroupIngress: 
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+      Tags: 
+        - Key: Name
+          Value: lb-allow-http
+      VpcId: !Ref pVpcId
+
+
+  
+#Outputs:
